@@ -1,4 +1,4 @@
-package day_01;
+package day_01.part_01;
 
 public class Q2 {
 //    **Q2. Which of the following literals is of type `long`?** B

@@ -1,4 +1,4 @@
-package day_01;
+package day_01.part_01;
 
 public class Q3 {
 //    **Q3. What is the output of the following code?**  A

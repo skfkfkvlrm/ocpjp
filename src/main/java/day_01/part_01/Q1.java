@@ -1,4 +1,4 @@
-package day_01;
+package day_01.part_01;
 
 public class Q1 {
     //Q1. Which of the following is a valid variable name in Java?  B
