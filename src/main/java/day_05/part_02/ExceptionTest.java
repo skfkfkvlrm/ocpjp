@@ -13,6 +13,7 @@ public class ExceptionTest {
 
     public static void riskyOperation() throws IOException {
         // TODO: IOException 강제 발생
+        throw new IOException();
     }
 }
 
