@@ -1,6 +1,5 @@
 package daily_study.day_11.part_02;
 
-import jakarta.persistence.criteria.CriteriaBuilder;
 
 import java.util.function.Supplier;
 
