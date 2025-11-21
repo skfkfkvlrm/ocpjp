@@ -1,0 +1,16 @@
+[
+  {
+    "first_name": "철수",
+    "last_name": "김",
+    "order_id": 1,
+    "total_amount": 60000.00,
+    "status": "pending"
+  },
+  {
+    "first_name": "영희",
+    "last_name": "이",
+    "order_id": 2,
+    "total_amount": 15000.00,
+    "status": "pending"
+  }
+]
