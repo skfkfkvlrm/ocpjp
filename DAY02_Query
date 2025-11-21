@@ -1,0 +1,302 @@
+-- DAY02 쿼리들 --
+-- 기본 엔터티들 식별
+-- 1. 고객 (Customer) - 기본 엔터티
+CREATE TABLE customers (
+                           customer_id INT PRIMARY KEY AUTO_INCREMENT,
+                           email VARCHAR(100) UNIQUE NOT NULL,
+                           password_hash VARCHAR(255) NOT NULL,
+                           first_name VARCHAR(50) NOT NULL,
+                           last_name VARCHAR(50) NOT NULL,
+                           phone VARCHAR(20),
+                           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- 2. 도서 카테고리 (Book_Category) - 기본 엔터티
+CREATE TABLE book_categories (
+                                 category_id INT PRIMARY KEY AUTO_INCREMENT,
+                                 category_name VARCHAR(100) UNIQUE NOT NULL,
+                                 description TEXT,
+                                 parent_category_id INT,  -- 계층적 카테고리 지원
+                                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                                 FOREIGN KEY (parent_category_id) REFERENCES book_categories(category_id)
+);
+
+-- 3. 저자 (Author) - 기본 엔터티
+CREATE TABLE authors (
+                         author_id INT PRIMARY KEY AUTO_INCREMENT,
+                         author_name VARCHAR(100) NOT NULL,
+                         biography TEXT,
+                         birth_date DATE,
+                         nationality VARCHAR(50),
+                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 4. 출판사 (Publisher) - 기본 엔터티
+CREATE TABLE publishers (
+                            publisher_id INT PRIMARY KEY AUTO_INCREMENT,
+                            publisher_name VARCHAR(100) NOT NULL,
+                            address TEXT,
+                            contact_phone VARCHAR(20),
+                            email VARCHAR(100),
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 5. 도서 (Book) - 중심 엔터티
+CREATE TABLE books (
+                       book_id INT PRIMARY KEY AUTO_INCREMENT,
+                       isbn VARCHAR(20) UNIQUE,
+                       title VARCHAR(200) NOT NULL,
+                       subtitle VARCHAR(200),
+                       description TEXT,
+                       page_count INT,
+                       publication_date DATE,
+                       language VARCHAR(10) DEFAULT 'ko',
+                       price DECIMAL(10,2) NOT NULL,
+                       stock_quantity INT DEFAULT 0,
+
+    -- 외래키 관계
+                       category_id INT NOT NULL,
+                       publisher_id INT NOT NULL,
+
+    -- 메타데이터
+                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+                       FOREIGN KEY (category_id) REFERENCES book_categories(category_id),
+                       FOREIGN KEY (publisher_id) REFERENCES publishers(publisher_id),
+
+    -- 인덱스 생성 (검색 성능 향상)
+                       INDEX idx_title (title),
+                       INDEX idx_isbn (isbn),
+                       INDEX idx_category (category_id)
+);
+
+-- 6. 도서-저자 관계 (Book_Author) - 다대다 관계 해결
+CREATE TABLE book_authors (
+                              book_id INT,
+                              author_id INT,
+                              author_role ENUM('main', 'co-author', 'editor', 'translator') DEFAULT 'main',
+                              PRIMARY KEY (book_id, author_id),
+                              FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE CASCADE,
+                              FOREIGN KEY (author_id) REFERENCES authors(author_id) ON DELETE CASCADE
+);
+
+-- 7. 주문 (Order) - 행위 엔터티
+CREATE TABLE orders (
+                        order_id INT PRIMARY KEY AUTO_INCREMENT,
+                        customer_id INT NOT NULL,
+                        order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        status ENUM('pending', 'processing', 'shipped', 'delivered', 'cancelled') DEFAULT 'pending',
+                        total_amount DECIMAL(12,2) NOT NULL,
+
+    -- 배송 정보
+                        shipping_address TEXT NOT NULL,
+                        shipping_phone VARCHAR(20),
+
+    -- 결제 정보
+                        payment_method ENUM('card', 'bank_transfer', 'paypal') NOT NULL,
+                        payment_status ENUM('pending', 'completed', 'failed') DEFAULT 'pending',
+
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+                        FOREIGN KEY (customer_id) REFERENCES customers(customer_id),
+                        INDEX idx_customer_order (customer_id, order_date),
+                        INDEX idx_status (status)
+);
+
+-- 8. 주문 상세 (Order_Item) - 행위 엔터티
+CREATE TABLE order_items (
+                             order_id INT,
+                             book_id INT,
+                             quantity INT NOT NULL CHECK(quantity > 0),
+                             unit_price DECIMAL(10,2) NOT NULL,
+                             total_price DECIMAL(12,2) GENERATED ALWAYS AS (quantity * unit_price) STORED,
+
+                             PRIMARY KEY (order_id, book_id),
+                             FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
+                             FOREIGN KEY (book_id) REFERENCES books(book_id)
+);
+
+-- 고객 주소 정보 (복합 속성 분리)
+CREATE TABLE customer_addresses (
+                                    address_id INT PRIMARY KEY AUTO_INCREMENT,
+                                    customer_id INT NOT NULL,
+                                    address_type ENUM('home', 'work', 'shipping') NOT NULL,
+
+    -- 주소 구성 요소 분리
+                                    street_address VARCHAR(200) NOT NULL,
+                                    detail_address VARCHAR(100),
+                                    city VARCHAR(50) NOT NULL,
+                                    state VARCHAR(50),
+                                    postal_code VARCHAR(10) NOT NULL,
+                                    country VARCHAR(50) DEFAULT '대한민국',
+
+                                    is_default BOOLEAN DEFAULT FALSE,
+                                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+                                    FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE CASCADE,
+                                    INDEX idx_customer_address (customer_id)
+);
+
+-- 도서 리뷰 (의견/평가 속성)
+CREATE TABLE book_reviews (
+                              review_id INT PRIMARY KEY AUTO_INCREMENT,
+                              book_id INT NOT NULL,
+                              customer_id INT NOT NULL,
+                              rating INT NOT NULL CHECK(rating BETWEEN 1 AND 5),
+                              review_title VARCHAR(200),
+                              review_content TEXT,
+                              is_verified_purchase BOOLEAN DEFAULT FALSE,
+                              helpful_count INT DEFAULT 0,
+                              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+                              FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE CASCADE,
+                              FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE CASCADE,
+                              UNIQUE KEY unique_customer_book_review (customer_id, book_id),
+                              INDEX idx_book_rating (book_id, rating)
+);
+
+-- 샘플 데이터 --
+-- 고객 데이터
+INSERT INTO customers (email, password_hash, first_name, last_name, phone)
+VALUES
+    ('kim@example.com', 'hash1', '철수', '김', '010-1111-1111'),
+    ('lee@example.com', 'hash2', '영희', '이', '010-2222-2222'),
+    ('park@example.com', 'hash3', '민수', '박', '010-3333-3333');
+
+-- 주소 데이터
+INSERT INTO customer_addresses (customer_id, address_type, street_address, city, postal_code, is_default)
+VALUES
+    (1, 'home', '서울시 강남구 테헤란로 123', '서울', '06123', TRUE),
+    (2, 'home', '부산시 해운대구 센텀대로 99', '부산', '48000', TRUE),
+    (3, 'home', '대전시 유성구 궁동로 77', '대전', '34100', TRUE);
+
+-- 카테고리
+INSERT INTO book_categories (category_name, description)
+VALUES
+    ('IT/프로그래밍', 'IT 전문서적'),
+    ('소설', '국내외 소설'),
+    ('자기계발', '동기부여 및 성공철학');
+
+-- 출판사
+INSERT INTO publishers (publisher_name, address, contact_phone)
+VALUES
+    ('한빛미디어', '서울시 마포구 양화로 45', '02-111-1111'),
+    ('민음사', '서울시 종로구 종로1길 50', '02-222-2222');
+
+-- 저자
+INSERT INTO authors (author_name, nationality)
+VALUES
+    ('홍길동', '대한민국'),
+    ('John Smith', 'USA'),
+    ('이서연', '대한민국');
+
+-- 도서
+INSERT INTO books (isbn, title, price, stock_quantity, category_id, publisher_id)
+VALUES
+    ('978-89-111-1111-1', 'SQL 완벽 가이드', 28000, 50, 1, 1),
+    ('978-89-222-2222-2', '자바 프로그래밍 입문', 32000, 30, 1, 1),
+    ('978-89-333-3333-3', '마음챙김의 기술', 15000, 40, 3, 2);
+
+-- 도서-저자 관계
+INSERT INTO book_authors (book_id, author_id, author_role)
+VALUES
+    (1, 1, 'main'),
+    (2, 3, 'main'),
+    (3, 2, 'main');
+
+-- 주문
+INSERT INTO orders (customer_id, total_amount, shipping_address, payment_method, payment_status)
+VALUES
+    (1, 60000, '서울시 강남구 테헤란로 123', 'card', 'completed'),
+    (2, 15000, '부산시 해운대구 센텀대로 99', 'bank_transfer', 'completed');
+
+-- 주문 상세
+INSERT INTO order_items (order_id, book_id, quantity, unit_price)
+VALUES
+    (1, 1, 1, 28000),
+    (1, 2, 1, 32000),
+    (2, 3, 1, 15000);
+
+-- 리뷰
+INSERT INTO book_reviews (book_id, customer_id, rating, review_title, review_content, is_verified_purchase)
+VALUES
+    (1, 1, 5, '좋아요!', 'SQL 개념이 명확해졌어요.', TRUE),
+    (2, 2, 4, '초보자에게 유익', '자바 입문서로 좋아요.', TRUE),
+    (3, 3, 5, '삶이 바뀜', '마음이 차분해졌어요.', TRUE);
+
+-- 고객 목록 확인
+SELECT customer_id, CONCAT(first_name, last_name) AS customer_name, email FROM customers;
+
+-- 도서 목록
+SELECT book_id, title, price, stock_quantity FROM books;
+
+-- 주문별 상세 내역 조회
+SELECT o.order_id, c.first_name AS customer, b.title, oi.quantity, oi.unit_price, o.total_amount
+FROM orders o
+JOIN customers c ON o.customer_id = c.customer_id
+JOIN order_items oi ON o.order_id = oi.order_id
+JOIN books b ON oi.book_id = b.book_id
+ORDER BY o.order_id;
+
+-- 카테고리별 도서 수 확인
+SELECT bc.category_name, COUNT(b.book_id) AS book_count
+FROM book_categories bc
+LEFT JOIN books b ON bc.category_id = b.category_id
+GROUP BY bc.category_name;
+
+-- 3만원 이상 도서 검색
+SELECT title, price FROM books WHERE price >= 30000;
+
+-- 특정 고객의 주문 내역
+SELECT o.order_id, o.total_amount, o.status, o.payment_method
+FROM orders o
+JOIN customers c ON o.customer_id = c.customer_id
+WHERE c.email = 'hong@test.com';
+
+-- DAY02 예제 --
+-- 1. 고객별 주문 목록 조회
+SELECT c.first_name, c.last_name, o.order_id, o.total_amount, o.status
+FROM customers c
+JOIN orders o ON c.customer_id = o.customer_id
+ORDER BY o.order_date DESC;
+
+-- 2. 도서별 리뷰 평균 점수
+SELECT b.title, ROUND(AVG(r.rating),1) AS avg_rating,
+       COUNT(r.review_id) AS review_count
+    FROM books b
+LEFT JOIN book_reviews r ON b.book_id = r.book_id
+GROUP BY b.book_id, b.title
+ORDER BY avg_rating DESC;
+
+-- 3. 저자별 출판 도서 수
+SELECT a.author_name, COUNT(ba.book_id) AS book_count
+    FROM authors a
+LEFT JOIN book_authors ba ON a.author_id = ba.author_id
+GROUP BY a.author_name;
+
+-- 4. 카테고리별 도서 재고 현황
+SELECT c.category_name, SUM(b.stock_quantity) AS total_stock
+    FROM book_categories c
+JOIN books b ON c.category_id = b.category_id
+GROUP BY c.category_name
+ORDER BY total_stock DESC;
+
+-- 5. 고객의 평균 주문 금액
+SELECT c.first_name, c.last_name, ROUND(AVG(o.total_amount),0) AS avg_order
+    FROM customers c
+JOIN orders o ON c.customer_id = o.customer_id
+GROUP BY c.customer_id
+ORDER BY avg_order DESC;
+
+-- 6. 구매 이력 기반 추천용 조인 (도서-저자-카테고리)
+SELECT o.order_id, b.title, a.author_name, c.category_name
+    FROM orders o
+JOIN order_items oi ON o.order_id = oi.order_id
+JOIN books b ON oi.book_id = b.book_id
+JOIN book_authors ba ON b.book_id = ba.book_id
+JOIN authors a ON ba.author_id = a.author_id
+JOIN book_categories c ON b.category_id = c.category_id
+ORDER BY o.order_id;

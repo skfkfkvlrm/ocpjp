@@ -1,0 +1,14 @@
+[
+  {
+    "author_name": "홍길동",
+    "book_count": 1
+  },
+  {
+    "author_name": "John Smith",
+    "book_count": 1
+  },
+  {
+    "author_name": "이서연",
+    "book_count": 1
+  }
+]

@@ -1,0 +1,77 @@
+-- 고객 (기본 엔터티)
+CREATE TABLE customers (
+    customer_id INT PRIMARY KEY AUTO_INCREMENT,
+    customer_name VARCHAR(50) NOT NULL,
+    email VARCHAR(100) UNIQUE,
+    phone VARCHAR(20)
+);
+-- 주문 (자식 엔터티, 비식별관계)
+CREATE TABLE orders (
+    order_id INT PRIMARY KEY AUTO_INCREMENT,
+    customer_id INT NOT NULL,
+    order_date DATE DEFAULT (CURRENT_DATE),
+    total_amount DECIMAL(10,2) NOT NULL,
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+);
+-- 샘플 데이터 삽입
+INSERT INTO customers (customer_name, email, phone)
+VALUES
+    ('홍길동', 'hong@test.com', '010-1111-2222'),
+    ('이영희', 'lee@test.com', '010-3333-4444');
+
+INSERT INTO orders(customer_id, total_amount)
+VALUES
+    (1, 12000), (1, 30000),
+    (2, 15000);
+
+-- 직원
+CREATE TABLE employees (
+    employee_id INT PRIMARY KEY AUTO_INCREMENT,
+    employee_name VARCHAR(50) NOT NULL,
+    department VARCHAR(50)
+);
+
+-- 사원증 (식별관계)
+CREATE TABLE employee_cards (
+    employee_id INT PRIMARY KEY,
+    card_number VARCHAR(20) UNIQUE NOT NULL,
+    issued_date DATE DEFAULT (CURRENT_DATE),
+    FOREIGN KEY (employee_id) REFERENCES employees(employee_id)
+);
+
+-- 샘플 데이터
+INSERT INTO employees (employee_name, department)
+VALUES ('김민수', '개발팀'), ('박지현', '인사팀');
+
+INSERT INTO employee_cards (employee_id, card_number)
+VALUES (1, 'CARD-DEV-001'), (2, 'CARD-HR-001');
+
+-- 실습3
+CREATE TABLE books (
+    book_id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE authors (
+    author_id INT PRIMARY KEY AUTO_INCREMENT,
+    author_name VARCHAR(50) NOT NULL
+);
+
+-- N:M 관계 해소용 중간 테이블 (식별관계)
+CREATE TABLE book_authors (
+    book_id INT NOT NULL,
+    author_id INT NOT NULL,
+    PRIMARY KEY (book_id, author_id),
+    FOREIGN KEY (book_id) REFERENCES books(book_id) ON DELETE CASCADE,
+    FOREIGN KEY (author_id) REFERENCES authors(author_id) ON DELETE CASCADE
+);
+
+-- 샘플 데이터
+INSERT INTO books (title)
+VALUES ('데이터모델링의 정석'), ('SQLD 완벽 대비'), ('자바의 정석');
+
+INSERT INTO authors (author_name)
+VALUES ('홍길동'), ('이영희');
+
+INSERT INTO book_authors (book_id, author_id)
+VALUES (1,1), (2,1), (2,2), (3,2);
